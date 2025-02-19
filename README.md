@@ -1,37 +1,46 @@
 # **BOOK MY SHOW CLONE PROJECT**
 
-## Create an EC2 Instance
-- Size - t2.large 
-- Security groups
-```list
-22 - SSH
-25 - SMTP
-465 - SMTPS
-80 - HTTP 
-443 - HTTPS
-3000-1000 - APPLICATION PORTS
-6443 - KUBERNETES API SERVER
-30000 - 32767 - NodePort range 
-IPv4 and IPv6 ICMP - For ping protocol 
-```
-- Login to the EC2 instance.
+---
 
-## EC2 Instance setup
-- Installation of Jenkins, Run the jenkins.sh script to install jenkins. Access Jenkins service at http://EC2PUBLICIP:8080. 
-- Installation of docker, Run the docker.sh script to install docker.
-- Install Trivy, Run the trivy.sh script to install trivy.
-- Install SonarQube, We will install sonarqube as a docker image. Access SonarQube service at http://EC2PUBLICIP:9000. Default username and password is admin <-> admin
+## **EC2 Instance Setup**
+### **1. Create an EC2 Instance**
+- **Instance Type:** `t2.large`
+- **Security Groups:**
+  ```
+  22  - SSH
+  25  - SMTP
+  465 - SMTPS
+  80  - HTTP
+  443 - HTTPS
+  3000-1000 - Application Ports
+  6443 - Kubernetes API Server
+  30000 - 32767 - NodePort Range
+  IPv4 and IPv6 ICMP - Ping Protocol
+  ```
+- **Login to the EC2 Instance**
+
+### **2. Install Required Services**
+Run the following scripts to install necessary tools:
+
+- Installation of **Jenkins**, Run the jenkins.sh script to install jenkins. Access Jenkins service at http://EC2PUBLICIP:8080. 
+- Installation of **docker**, Run the docker.sh script to install docker.
+- Install **Trivy**, Run the trivy.sh script to install trivy.
+- Install **SonarQube**, We will install sonarqube as a docker image. Access SonarQube service at http://EC2PUBLICIP:9000. Default username and password is admin <-> admin
 ```docker
 docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
 ```
-- Install npm as we are working with a nodejs project.
+- Install **npm** as we are working with a nodejs project.
 ```bash
 sudo apt install -y npm
 ```
 
-## Jenkins Server Configuration
+---
+
+## **Jenkins Server Configuration**
+
+### **1. Install Jenkins Plugins**
 - Install the following plugins in Jenkins, Manage Jenkins -> Plugins. Install the plugins, Post installation **Restart jenkins** as prometheus does not accept dynamic loading. Jenkins server has to be restarted **sudo systemctl restart jenkins**
-```list
+
 1. Pipeline: Stage View
 2. Eclipse Temurin installer
 3. SonarQube Scanner
@@ -50,21 +59,28 @@ sudo apt install -y npm
 16. Docker API
 17. Docker Pipeline
 18. Docker build step
+
+🔄 **Restart Jenkins:**
+```bash
+sudo systemctl restart jenkins
 ```
+
+### **2. Configure SonarQube in Jenkins**
 - Before we configure SonarQube server with Jenkins Instance, for the jenkins to be able to talk to SonarQube server we need SonarQube token.
-```list
+- **Generate SonarQube Token:**
 1. Go to SonarQube UI 
 2. Go to Administration -> Security -> Users 
 3. Administrator -> Tokens -> Create a new token and Save it.
-```
+- **Add Jenkins Credentials:**
 - Now in Jenkins lets add the following Credentials,  Manage Jenkins -> Credentials. Keep a **meaningful ID**  as it will be recognized by Jenkins Pipeline stages.
-```list
+```
 1. SonarQube: Type - Secret text - ID{Sonar-token} - Secret text{SonarQubeToken}
 2. DockerHub: Type - Username with password - ID{docker} - Username{DOCKERUSERNAME} - Password{DOCKERPASSWORD}
 3. OWASP Dependency check - Secret text - ID{NVD_API_KEY} - Paste the secret text you got from NVD Link. Link can be found under ## Jenkins Pipeline Stages
 4. Gmail: Type - Username with password - ID{email-creds} - Username{GMAILID} - Password{APPPASSWORD}
 # To get gmail token go to Gmail account settings -> Seucurity -> Enable 2 step authentication if not yet done. Search for App Password -> Create an app password, this will be the secret text we will use with jenkins. Save the secret text, remove the spaces.
 ```
+- **Configure Webhook:**
 - Configure webhooks in SonarQube server, so that jenkins will be able to send the code for scanning into sonarqube
 ```list
 1. Go to SonarQube server UI.
@@ -72,6 +88,7 @@ sudo apt install -y npm
 3. Name{jenkins-server} - URL{http://JSERVERPUBLICIP:8080/sonarqube-webhook/}
 4. Create the webook
 ```
+### **3. Configure Jenkins Tools**
 - Configure the following tools in Jenkins server, Manage Jenkins -> Tools. Keep a **meaningful name**  as it will be recognized by Jenkins Pipeline stages.
 ```list
 1. JDK Installations -> Add JDK -> Name{jdk17} -> Install automatically -> Add Installer -> Install from adoptium.net{Because we installed the plugin Eclipse temurin installer} -> This plugin helps us choose the appropriate version we installed Java on the server. Choose {jdk-17.0.8+1}, any version can be choosen from OpenJDK 17's available options.
@@ -82,6 +99,7 @@ sudo apt install -y npm
 6. Apply and Save
 ```
 - Add the SonarQube Server IP address to Jenkins, Manage Jenkins -> System -> SonarQube servers -> Add SonarQube -> Name{sonar-server} - Server URL{http://3.8.137.20:9000} - Server authentication token{Choose the token we saved in credentials}. Apply and Save.
+### **4. Email Notifications Setup**
 - Configure Email settings in Jenkins server to receive email post pipeline stages. 
 - **Extended E-mail Notification**
 ```list
@@ -101,15 +119,25 @@ sudo apt install -y npm
 5. Test configuration by sending email
 6. If set up was successfull, you should see email notification on your Reply-To Address GMAIL ID.
 ```
+🔎 **Test Configuration** by sending an email
 - Setup Default triggers -> CTRL + F -> Search for Default Triggers -> Check **Success**, **Always** and **Failure-Any**. 
 - Whenever a Job gets triggered, you will receive notification.
 
-## Create an EKS Cluster.
+---
+
+## **EKS Cluster Setup**
+
+### **1. Install Required Tools**
+Run the following scripts:
+- **AWS CLI:** `awscli.sh`
+- **Kubectl:** `kubectl.sh`
+- **eksctl:** `eksctl.sh`
+
+### **2. Create an EKS Cluster**
 - EKS cluster will server as out kubernetes platform.
 - EKS cluster should not be created with root user account for security reasons.
 - We will use an IAM user with required permissions and use the IAM user profile to create EKS cluster.
-- Login with the IAM user using AWSCLI, To install AWSCLI run the script awscli.sh
-- Login using the users Access key and Secret Access key.
+- Login with the IAM user using AWSCLI, Login using the users Access key and Secret Access key.
 - We need Kubectl to interact with the EKS cluster, so lets install Kubectl. To install kubectl, run the kubectl.sh script.
 - To create EKS cluster we need **eksctl**. To install **eksctl**, run the eksctl.sh script.
 - Once **eksctl** is installed lets create the EKS cluster. First without NodeGroup and add NodeGroup after cluster creation.
@@ -120,7 +148,7 @@ eksctl create cluster --name=${CLUSTER_NAME} \
                       --version=1.30 \
                       --without-nodegroup
 ```
-- Associate **iam-oidc-provider** with the EKS cluster we created
+### **3. Associate IAM OIDC Provider**
 ```bash
 eksctl utils associate-iam-oidc-provider \
     --region ${CLUSTER_REGION} \
@@ -133,6 +161,8 @@ eksctl utils associate-iam-oidc-provider \
 - Without this, Pods in EKS clusters would require node-level IAM roles, which grant permissions to all Pods on a node.
 - Without this, these services will not be able to access AWS resources securely.
 - Create EKS node group, Use the SSH key stored in aws. EC2 -> Network & Security -> Key Pairs ${KeyPairName}. This Key Pair will be used to SSH into the nodes.
+
+### **4. Create EKS Node Group**
 ```bash
 eksctl create nodegroup --cluster=${CLUSTER_NAME} \
                        --region=${CLUSTER_REGION} \
@@ -152,17 +182,27 @@ eksctl create nodegroup --cluster=${CLUSTER_NAME} \
                        --alb-ingress-access
 ```
 
-## Jenkins Pipeline Stages
-- OWASP Dependency check, We need a NVD API Key for it to scan for OWASP Vulnerabilities even faster. Get you key from this website <a href="https://nvd.nist.gov/developers/request-an-api-key">Link</a>
+---
+
+## **Jenkins Pipeline Stages**
+
+### **OWASP Dependency Check**
+To improve vulnerability scanning speed, use an **NVD API Key**:
+
+🔗 **Get API Key:** [NVD API Key Request](https://nvd.nist.gov/developers/request-an-api-key)
+
 - This Key should be passed in the stage **OWASP FS Scan**
+#### **Pipeline Stage for OWASP FS Scan**
 ```json
 stage('OWASP FS Scan') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${YOUR_NVD_API_KEY}', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+    steps {
+        dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --nvdApiKey ${YOUR_NVD_API_KEY}', odcInstallation: 'DP-Check'
+        dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+    }
+}
 ```
+
+---
 
 ## JENKINS USER SETUP
 - Because in the pipeline, We are talking to EKS cluster. 
